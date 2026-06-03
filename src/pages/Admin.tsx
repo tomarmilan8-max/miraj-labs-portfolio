@@ -18,13 +18,14 @@ function StatCard({ value, label }: { value: string | number; label: string }) {
   );
 }
 
-function AddForm({ onAdd }: { onAdd: (p: Project) => void }) {
+function AddForm({ onAdd }: { onAdd: (p: Project) => Promise<void> }) {
   const [url, setUrl]             = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
   const [title, setTitle]         = useState("");
   const [category, setCategory]   = useState("");
   const [description, setDescription] = useState("");
   const [error, setError]         = useState("");
+  const [saving, setSaving]       = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   const handleUrlChange = (v: string) => {
@@ -37,12 +38,14 @@ function AddForm({ onAdd }: { onAdd: (p: Project) => void }) {
     }, 700);
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!url.trim()) { setError("URL is required"); return; }
     try { new URL(url.trim()); } catch { setError("Enter a valid URL"); return; }
     if (!title.trim()) { setError("Project name is required"); return; }
-    onAdd({ url: url.trim(), title: title.trim(), category: category.trim() || "Web Project", description: description.trim() || "A website built by MIRAJ LABS." });
+    setSaving(true);
+    await onAdd({ url: url.trim(), title: title.trim(), category: category.trim() || "Web Project", description: description.trim() || "A website built by MIRAJ LABS." });
     setUrl(""); setPreviewUrl(""); setTitle(""); setCategory(""); setDescription(""); setError("");
+    setSaving(false);
   };
 
   const fields = [
@@ -80,10 +83,10 @@ function AddForm({ onAdd }: { onAdd: (p: Project) => void }) {
           </div>
         </div>
         {error && <p className="text-sm" style={{ color: "var(--c-accent)", fontFamily: "'Inter', sans-serif" }}>{error}</p>}
-        <button onClick={handleAdd}
+        <button onClick={handleAdd} disabled={saving}
           className="flex items-center gap-2 px-6 py-3 text-sm font-medium transition-all"
-          style={{ background: "var(--c-accent)", color: "var(--c-on-dark)", borderRadius: "10px", fontFamily: "'Inter', sans-serif", fontWeight: 600 }}>
-          <Plus size={16} /> Add to Portfolio
+          style={{ background: "var(--c-accent)", color: "var(--c-on-dark)", borderRadius: "10px", fontFamily: "'Inter', sans-serif", fontWeight: 600, opacity: saving ? 0.7 : 1 }}>
+          <Plus size={16} /> {saving ? "Saving..." : "Add to Portfolio"}
         </button>
       </div>
 
@@ -120,10 +123,11 @@ function AddForm({ onAdd }: { onAdd: (p: Project) => void }) {
   );
 }
 
-function ProjectRow({ project, onEdit, onRemove }: { project: Project; index: number; onEdit: (updated: Project) => void; onRemove: () => void }) {
+function ProjectRow({ project, onEdit, onRemove }: { project: Project; onEdit: (updated: Project) => Promise<void>; onRemove: () => Promise<void> }) {
   const [editing, setEditing]   = useState(false);
   const [form, setForm]         = useState<Project>(project);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [saving, setSaving]     = useState(false);
 
   useEffect(() => { setForm(project); }, [project]);
 
@@ -146,10 +150,11 @@ function ProjectRow({ project, onEdit, onRemove }: { project: Project; index: nu
         </div>
       ))}
       <div className="flex gap-2 pt-1">
-        <button onClick={() => { onEdit(form); setEditing(false); }}
+        <button onClick={async () => { setSaving(true); await onEdit(form); setEditing(false); setSaving(false); }}
+          disabled={saving}
           className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium"
-          style={{ background: "var(--c-accent)", color: "var(--c-on-dark)", borderRadius: "8px", fontFamily: "'Inter', sans-serif" }}>
-          <Check size={14} /> Save
+          style={{ background: "var(--c-accent)", color: "var(--c-on-dark)", borderRadius: "8px", fontFamily: "'Inter', sans-serif", opacity: saving ? 0.7 : 1 }}>
+          <Check size={14} /> {saving ? "Saving..." : "Save"}
         </button>
         <button onClick={() => setEditing(false)}
           className="flex items-center gap-1.5 px-4 py-2 text-sm"
@@ -174,21 +179,17 @@ function ProjectRow({ project, onEdit, onRemove }: { project: Project; index: nu
       <div className="flex items-center gap-2 shrink-0">
         <a href={project.url} target="_blank" rel="noopener noreferrer"
           className="w-8 h-8 flex items-center justify-center rounded-full transition-all"
-          style={{ background: "var(--c-dark-08)", color: "var(--c-dark-60)" }}
-          onMouseEnter={e => (e.currentTarget.style.background = "var(--c-pale)")}
-          onMouseLeave={e => (e.currentTarget.style.background = "var(--c-dark-08)")}>
+          style={{ background: "var(--c-dark-08)", color: "var(--c-dark-60)" }}>
           <ExternalLink size={14} />
         </a>
         <button onClick={() => setEditing(true)}
           className="w-8 h-8 flex items-center justify-center rounded-full transition-all"
-          style={{ background: "var(--c-dark-08)", color: "var(--c-dark-60)" }}
-          onMouseEnter={e => (e.currentTarget.style.background = "var(--c-pale)")}
-          onMouseLeave={e => (e.currentTarget.style.background = "var(--c-dark-08)")}>
+          style={{ background: "var(--c-dark-08)", color: "var(--c-dark-60)" }}>
           <Pencil size={14} />
         </button>
         {confirmDelete ? (
           <div className="flex items-center gap-1">
-            <button onClick={onRemove}
+            <button onClick={async () => { await onRemove(); setConfirmDelete(false); }}
               className="px-2 py-1 text-xs font-medium"
               style={{ background: "#dc2626", color: "#fff", borderRadius: "6px", fontFamily: "'Inter', sans-serif" }}>
               Delete
@@ -202,9 +203,7 @@ function ProjectRow({ project, onEdit, onRemove }: { project: Project; index: nu
         ) : (
           <button onClick={() => setConfirmDelete(true)}
             className="w-8 h-8 flex items-center justify-center rounded-full transition-all"
-            style={{ background: "var(--c-dark-08)", color: "#dc2626" }}
-            onMouseEnter={e => (e.currentTarget.style.background = "#fee2e2")}
-            onMouseLeave={e => (e.currentTarget.style.background = "var(--c-dark-08)")}>
+            style={{ background: "var(--c-dark-08)", color: "#dc2626" }}>
             <Trash2 size={14} />
           </button>
         )}
@@ -216,9 +215,7 @@ function ProjectRow({ project, onEdit, onRemove }: { project: Project; index: nu
 export default function Admin() {
   const { isAdmin, logout } = useAuth();
   const [, navigate] = useLocation();
-  const { projects, addProject, removeProject, updateProject, stats } = useProjects();
-
-  const [editForm, setEditForm] = useState<{ index: number; data: Project } | null>(null);
+  const { projects, loading, addProject, removeProject, updateProject, stats } = useProjects();
 
   useEffect(() => { if (!isAdmin) navigate("/"); }, [isAdmin, navigate]);
   if (!isAdmin) return null;
@@ -231,9 +228,7 @@ export default function Admin() {
           <div className="flex items-center gap-3 min-w-0">
             <button onClick={() => navigate("/")}
               className="flex items-center gap-1.5 text-sm transition-colors shrink-0"
-              style={{ color: "var(--c-dark-60)" }}
-              onMouseEnter={e => (e.currentTarget.style.color = "var(--c-accent)")}
-              onMouseLeave={e => (e.currentTarget.style.color = "var(--c-dark-60)")}>
+              style={{ color: "var(--c-dark-60)" }}>
               <ArrowLeft size={16} /> <span className="hidden sm:inline">Back to site</span>
             </button>
             <div className="w-px h-5 shrink-0" style={{ background: "var(--c-dark-15)" }} />
@@ -247,9 +242,7 @@ export default function Admin() {
           </div>
           <button onClick={() => { logout(); navigate("/"); }}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all shrink-0"
-            style={{ background: "var(--c-pale)", color: "var(--c-dark)", borderRadius: "10px" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--c-accent)"; (e.currentTarget as HTMLElement).style.color = "var(--c-on-dark)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "var(--c-pale)"; (e.currentTarget as HTMLElement).style.color = "var(--c-dark)"; }}>
+            style={{ background: "var(--c-pale)", color: "var(--c-dark)", borderRadius: "10px" }}>
             <LogOut size={14} /> <span className="hidden sm:inline">Logout</span>
           </button>
         </div>
@@ -281,24 +274,29 @@ export default function Admin() {
           <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "36px", lineHeight: 0.95, color: "var(--c-dark)", marginBottom: "20px" }}>
             Manage Websites ({projects.length})
           </h2>
-          <div className="space-y-3">
-            {projects.length === 0 ? (
-              <p className="text-sm py-8 text-center" style={{ color: "var(--c-dark-40)", fontFamily: "'Inter', sans-serif" }}>
-                No websites yet. Add one above.
-              </p>
-            ) : (
-              projects.map((p, i) => (
-                <motion.div key={`${p.url}-${i}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
-                  <ProjectRow
-                    project={p}
-                    index={i}
-                    onEdit={(updated) => updateProject(i, updated)}
-                    onRemove={() => removeProject(i)}
-                  />
-                </motion.div>
-              ))
-            )}
-          </div>
+          {loading ? (
+            <p className="text-sm py-8 text-center" style={{ color: "var(--c-dark-40)", fontFamily: "'Inter', sans-serif" }}>
+              Loading projects...
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {projects.length === 0 ? (
+                <p className="text-sm py-8 text-center" style={{ color: "var(--c-dark-40)", fontFamily: "'Inter', sans-serif" }}>
+                  No websites yet. Add one above.
+                </p>
+              ) : (
+                projects.map((p, i) => (
+                  <motion.div key={p.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
+                    <ProjectRow
+                      project={p}
+                      onEdit={(updated) => updateProject(p.id!, updated)}
+                      onRemove={() => removeProject(p.id!)}
+                    />
+                  </motion.div>
+                ))
+              )}
+            </div>
+          )}
         </div>
       </main>
     </div>
