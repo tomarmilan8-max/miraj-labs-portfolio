@@ -4,23 +4,25 @@ import { useProjects, Project } from "@/contexts/ProjectContext";
 
 interface EditWebsiteModalProps {
   open: boolean;
-  index: number | null;
+  project: Project | null;
   onClose: () => void;
 }
 
-export default function EditWebsiteModal({ open, index, onClose }: EditWebsiteModalProps) {
-  const { projects, updateProject } = useProjects();
-  const project = index !== null ? projects[index] : null;
+export default function EditWebsiteModal({ open, project, onClose }: EditWebsiteModalProps) {
+  const { updateProject } = useProjects();
   const [form, setForm] = useState<Project>({ title: "", category: "", description: "", url: "" });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => { if (project) setForm({ ...project }); }, [project]);
 
-  if (!open || !project || index === null) return null;
+  if (!open || !project) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.url.trim()) return;
-    updateProject(index, form);
+    if (!form.url.trim() || !project.id) return;
+    setSaving(true);
+    await updateProject(project.id, form);
+    setSaving(false);
     onClose();
   };
 
@@ -76,12 +78,12 @@ export default function EditWebsiteModal({ open, index, onClose }: EditWebsiteMo
               onMouseLeave={e => (e.currentTarget.style.background = "var(--c-dark-08)")}>
               Cancel
             </button>
-            <button type="submit"
+            <button type="submit" disabled={saving}
               className="flex-1 py-3 text-sm font-medium transition-all"
-              style={{ background: "var(--c-accent)", color: "var(--c-on-dark)", borderRadius: "10px", fontFamily: "'Inter', sans-serif" }}
+              style={{ background: "var(--c-accent)", color: "var(--c-on-dark)", borderRadius: "10px", fontFamily: "'Inter', sans-serif", opacity: saving ? 0.7 : 1 }}
               onMouseEnter={e => (e.currentTarget.style.opacity = "0.88")}
               onMouseLeave={e => (e.currentTarget.style.opacity = "1")}>
-              Save Changes
+              {saving ? "Saving..." : "Save Changes"}
             </button>
           </div>
         </form>

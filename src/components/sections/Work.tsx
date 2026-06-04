@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Plus, ExternalLink, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useProjects } from "@/contexts/ProjectContext";
+import { useProjects, Project } from "@/contexts/ProjectContext";
 import { useLocation } from "wouter";
 import EditWebsiteModal from "@/components/EditWebsiteModal";
 
@@ -54,8 +54,8 @@ function KebabMenu({ onEdit, onRemove }: { onEdit: () => void; onRemove: () => v
 
 export default function Work() {
   const { isAdmin } = useAuth();
-  const { projects, removeProject } = useProjects();
-  const [editIndex, setEditIndex] = useState<number | null>(null);
+  const { projects, loading, removeProject } = useProjects();
+  const [editProject, setEditProject] = useState<Project | null>(null);
   const [, navigate] = useLocation();
 
   return (
@@ -81,60 +81,79 @@ export default function Work() {
           )}
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 md:gap-8">
-          {projects.map((project, i) => (
-            <motion.div key={`${project.url}-${i}`}
-              initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }} transition={{ delay: Math.min(i * 0.08, 0.32) }}
-              className="group flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-1"
-              style={{ background: "var(--c-dark)", borderRadius: "20px" }}
-              onMouseEnter={e => (e.currentTarget.style.boxShadow = "0 20px 48px var(--c-dark-25)")}
-              onMouseLeave={e => (e.currentTarget.style.boxShadow = "none")}>
-
-              <div className="relative w-full overflow-hidden" style={{ background: "var(--c-dark-08)", aspectRatio: "16/9" }}>
-                <div className="absolute inset-0 w-[285%] h-[285%] origin-top-left scale-[0.35]">
-                  <iframe src={project.url} className="w-full h-full border-0 pointer-events-none" loading="lazy" title={project.title} />
-                </div>
-                <a href={project.url} target="_blank" rel="noopener noreferrer"
-                  className="absolute inset-0 z-10" aria-label={`Visit ${project.title}`} />
+        {loading ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 md:gap-8">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="overflow-hidden" style={{ background: "var(--c-dark)", borderRadius: "20px", aspectRatio: "4/3" }}>
+                <div className="w-full h-full animate-pulse" style={{ background: "var(--c-dark-20)" }} />
               </div>
+            ))}
+          </div>
+        ) : projects.length === 0 ? (
+          <div className="text-center py-20">
+            <p style={{ color: "var(--c-dark-40)", fontFamily: "'Inter', sans-serif" }}>No projects yet.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 md:gap-8">
+            {projects.map((project, i) => (
+              <motion.div key={project.id || i}
+                initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }} transition={{ delay: Math.min(i * 0.08, 0.32) }}
+                className="group flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-1"
+                style={{ background: "var(--c-dark)", borderRadius: "20px" }}
+                onMouseEnter={e => (e.currentTarget.style.boxShadow = "0 20px 48px var(--c-dark-25)")}
+                onMouseLeave={e => (e.currentTarget.style.boxShadow = "none")}>
 
-              <div className="p-5 sm:p-7 flex flex-col flex-grow">
-                <div className="flex items-start justify-between gap-4 mb-3">
-                  <div>
-                    <span className="inline-block text-xs font-medium px-3 py-1 mb-2 sm:mb-3"
-                      style={{ background: "var(--c-accent-20)", color: "var(--c-soft)", borderRadius: "10px", fontFamily: "'Inter', sans-serif" }}>
-                      {project.category}
-                    </span>
-                    <h3 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(24px, 3vw, 38px)", lineHeight: 0.95, color: "var(--c-on-dark)" }}>
-                      {project.title}
-                    </h3>
+                <div className="relative w-full overflow-hidden" style={{ background: "var(--c-dark-08)", aspectRatio: "16/9" }}>
+                  <div className="absolute inset-0 w-[285%] h-[285%] origin-top-left scale-[0.35]">
+                    <iframe src={project.url} className="w-full h-full border-0 pointer-events-none" loading="lazy" title={project.title} />
                   </div>
-                  <div className="flex items-center gap-2 mt-1 shrink-0">
-                    {isAdmin && <KebabMenu onEdit={() => setEditIndex(i)} onRemove={() => removeProject(i)} />}
-                    <a href={project.url} target="_blank" rel="noopener noreferrer"
-                      className="w-10 h-10 rounded-full flex items-center justify-center transition-all"
-                      style={{ background: "var(--c-on-dark-10)", color: "var(--c-on-dark)" }}
-                      onMouseEnter={e => (e.currentTarget.style.background = "var(--c-accent)")}
-                      onMouseLeave={e => (e.currentTarget.style.background = "var(--c-on-dark-10)")}>
-                      <ExternalLink size={16} />
-                    </a>
-                  </div>
+                  <a href={project.url} target="_blank" rel="noopener noreferrer"
+                    className="absolute inset-0 z-10" aria-label={`Visit ${project.title}`} />
                 </div>
-                <p className="text-sm leading-relaxed"
-                  style={{ color: "var(--c-on-dark-60)", fontFamily: "'Inter', sans-serif" }}>
-                  {project.description}
-                </p>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+
+                <div className="p-5 sm:p-7 flex flex-col flex-grow">
+                  <div className="flex items-start justify-between gap-4 mb-3">
+                    <div>
+                      <span className="inline-block text-xs font-medium px-3 py-1 mb-2 sm:mb-3"
+                        style={{ background: "var(--c-accent-20)", color: "var(--c-soft)", borderRadius: "10px", fontFamily: "'Inter', sans-serif" }}>
+                        {project.category}
+                      </span>
+                      <h3 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(24px, 3vw, 38px)", lineHeight: 0.95, color: "var(--c-on-dark)" }}>
+                        {project.title}
+                      </h3>
+                    </div>
+                    <div className="flex items-center gap-2 mt-1 shrink-0">
+                      {isAdmin && (
+                        <KebabMenu
+                          onEdit={() => setEditProject(project)}
+                          onRemove={() => project.id && removeProject(project.id)}
+                        />
+                      )}
+                      <a href={project.url} target="_blank" rel="noopener noreferrer"
+                        className="w-10 h-10 rounded-full flex items-center justify-center transition-all"
+                        style={{ background: "var(--c-on-dark-10)", color: "var(--c-on-dark)" }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "var(--c-accent)")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "var(--c-on-dark-10)")}>
+                        <ExternalLink size={16} />
+                      </a>
+                    </div>
+                  </div>
+                  <p className="text-sm leading-relaxed"
+                    style={{ color: "var(--c-on-dark-60)", fontFamily: "'Inter', sans-serif" }}>
+                    {project.description}
+                  </p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </div>
 
       <EditWebsiteModal
-        open={editIndex !== null}
-        index={editIndex}
-        onClose={() => setEditIndex(null)}
+        open={editProject !== null}
+        project={editProject}
+        onClose={() => setEditProject(null)}
       />
     </section>
   );
